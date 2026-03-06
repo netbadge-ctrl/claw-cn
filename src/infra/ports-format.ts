@@ -1,4 +1,5 @@
 import { formatCliCommand } from "../cli/command-format.js";
+import { t } from "./i18n/index.js";
 import type { PortListener, PortListenerKind, PortUsage } from "./ports-types.js";
 
 export function classifyPortListener(listener: PortListener, port: number): PortListenerKind {
@@ -56,9 +57,9 @@ export function formatPortListener(listener: PortListener): string {
 
 export function formatPortDiagnostics(diagnostics: PortUsage): string[] {
   if (diagnostics.status !== "busy") {
-    return [`Port ${diagnostics.port} is free.`];
+    return [t("errors.portFree", { port: diagnostics.port })];
   }
-  const lines = [`Port ${diagnostics.port} is already in use.`];
+  const lines = [t("errors.portInUse", { port: diagnostics.port })];
   for (const listener of diagnostics.listeners) {
     lines.push(`- ${formatPortListener(listener)}`);
   }

@@ -27,6 +27,105 @@ function shouldForceReadOnlyAuthStore(argv: string[]): boolean {
   return false;
 }
 
+const EXPERIMENTAL_WARNING_FLAG = "--disable-warning=ExperimentalWarning";
+
+function hasExperimentalWarningSuppressed(): boolean {
+  const nodeOptions = process.env.NODE_OPTIONS ?? "";
+  if (nodeOptions.includes(EXPERIMENTAL_WARNING_FLAG) || nodeOptions.includes("--no-warnings")) {
+    return true;
+  }
+  for (const arg of process.execArgv) {
+    if (arg === EXPERIMENTAL_WARNING_FLAG || arg === "--no-warnings") {
+      return true;
+    }
+  }
+  return false;
+}
+
+function ensureExperimentalWarningSuppressed(): boolean {
+  if (shouldSkipRespawnForArgv(process.argv)) {
+    return false;
+  }
+  if (isTruthyEnvValue(process.env.OPENCLAW_NO_RESPAWN)) {
+    return false;
+  }
+  if (isTruthyEnvValue(process.env.OPENCLAW_NODE_OPTIONS_READY)) {
+    return false;
+  }
+  if (hasExperimentalWarningSuppressed()) {
+    return false;
+  }
+
+  // Respawn guard (and keep recursion bounded if something goes wrong).
+  process.env.OPENCLAW_NODE_OPTIONS_READY = "1";
+  // Pass flag as a Node CLI option, not via NODE_OPTIONS (--disable-warning is disallowed in NODE_OPTIONS).
+  const child = spawn(
+    process.execPath,
+    [EXPERIMENTAL_WARNING_FLAG, ...process.execArgv, ...process.argv.slice(1)],
+    {
+      stdio: "inherit",
+      env: process.env,
+    },
+  );
+
+  attachChildProcessBridge(child);
+
+  child.once("exit", (code, signal) => {
+    if (signal) {
+      process.exitCode = 1;
+      return;
+    }
+    process.exit(code ?? 1);
+  });
+
+  child.once("error", (error) => {
+    console.error(
+      "[openclaw] Failed to respawn CLI:",
+      error instanceof Error ? (error.stack ?? error.message) : error,
+    );
+    process.exit(1);
+  });
+
+  // Parent must not continue running the CLI.
+  return true;
+}
+
+function tryHandleRootVersionFastPath(argv: string[]): boolean {
+  if (!isRootVersionInvocation(argv)) {
+    return false;
+  }
+  import("./version.js")
+    .then(({ VERSION }) => {
+      console.log(VERSION);
+    })
+    .catch((error) => {
+      console.error(
+        "[openclaw] Failed to resolve version:",
+        error instanceof Error ? (error.stack ?? error.message) : error,
+      );
+      process.exitCode = 1;
+    });
+  return true;
+}
+
+function tryHandleRootHelpFastPath(argv: string[]): boolean {
+  if (!isRootHelpInvocation(argv)) {
+    return false;
+  }
+  import("./cli/program.js")
+    .then(({ buildProgram }) => {
+      buildProgram().outputHelp();
+    })
+    .catch((error) => {
+      console.error(
+        "[openclaw] Failed to display help:",
+        error instanceof Error ? (error.stack ?? error.message) : error,
+      );
+      process.exitCode = 1;
+    });
+  return true;
+}
+
 // Guard: only run entry-point logic when this file is the main module.
 // The bundler may import entry.js as a shared dependency when dist/index.js
 // is the actual entry point; without this guard the top-level code below
@@ -43,6 +142,20 @@ if (
   process.title = "openclaw";
   installProcessWarningFilter();
   normalizeEnv();
+
+  // Initialize early backend localization
+  import("./infra/i18n/index.js")
+    .then(({ i18n }) => {
+      const sysLang = process.env.LANG || process.env.LANGUAGE || process.env.LC_ALL;
+      if (
+        sysLang &&
+        (sysLang.toLowerCase().includes("zh_cn") || sysLang.toLowerCase().includes("zh-cn"))
+      ) {
+        i18n.setLocale("zh-CN");
+      }
+    })
+    .catch(() => {});
+
   if (!isTruthyEnvValue(process.env.NODE_DISABLE_COMPILE_CACHE)) {
     try {
       enableCompileCache();
@@ -58,105 +171,6 @@ if (
   if (process.argv.includes("--no-color")) {
     process.env.NO_COLOR = "1";
     process.env.FORCE_COLOR = "0";
-  }
-
-  const EXPERIMENTAL_WARNING_FLAG = "--disable-warning=ExperimentalWarning";
-
-  function hasExperimentalWarningSuppressed(): boolean {
-    const nodeOptions = process.env.NODE_OPTIONS ?? "";
-    if (nodeOptions.includes(EXPERIMENTAL_WARNING_FLAG) || nodeOptions.includes("--no-warnings")) {
-      return true;
-    }
-    for (const arg of process.execArgv) {
-      if (arg === EXPERIMENTAL_WARNING_FLAG || arg === "--no-warnings") {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  function ensureExperimentalWarningSuppressed(): boolean {
-    if (shouldSkipRespawnForArgv(process.argv)) {
-      return false;
-    }
-    if (isTruthyEnvValue(process.env.OPENCLAW_NO_RESPAWN)) {
-      return false;
-    }
-    if (isTruthyEnvValue(process.env.OPENCLAW_NODE_OPTIONS_READY)) {
-      return false;
-    }
-    if (hasExperimentalWarningSuppressed()) {
-      return false;
-    }
-
-    // Respawn guard (and keep recursion bounded if something goes wrong).
-    process.env.OPENCLAW_NODE_OPTIONS_READY = "1";
-    // Pass flag as a Node CLI option, not via NODE_OPTIONS (--disable-warning is disallowed in NODE_OPTIONS).
-    const child = spawn(
-      process.execPath,
-      [EXPERIMENTAL_WARNING_FLAG, ...process.execArgv, ...process.argv.slice(1)],
-      {
-        stdio: "inherit",
-        env: process.env,
-      },
-    );
-
-    attachChildProcessBridge(child);
-
-    child.once("exit", (code, signal) => {
-      if (signal) {
-        process.exitCode = 1;
-        return;
-      }
-      process.exit(code ?? 1);
-    });
-
-    child.once("error", (error) => {
-      console.error(
-        "[openclaw] Failed to respawn CLI:",
-        error instanceof Error ? (error.stack ?? error.message) : error,
-      );
-      process.exit(1);
-    });
-
-    // Parent must not continue running the CLI.
-    return true;
-  }
-
-  function tryHandleRootVersionFastPath(argv: string[]): boolean {
-    if (!isRootVersionInvocation(argv)) {
-      return false;
-    }
-    import("./version.js")
-      .then(({ VERSION }) => {
-        console.log(VERSION);
-      })
-      .catch((error) => {
-        console.error(
-          "[openclaw] Failed to resolve version:",
-          error instanceof Error ? (error.stack ?? error.message) : error,
-        );
-        process.exitCode = 1;
-      });
-    return true;
-  }
-
-  function tryHandleRootHelpFastPath(argv: string[]): boolean {
-    if (!isRootHelpInvocation(argv)) {
-      return false;
-    }
-    import("./cli/program.js")
-      .then(({ buildProgram }) => {
-        buildProgram().outputHelp();
-      })
-      .catch((error) => {
-        console.error(
-          "[openclaw] Failed to display help:",
-          error instanceof Error ? (error.stack ?? error.message) : error,
-        );
-        process.exitCode = 1;
-      });
-    return true;
   }
 
   process.argv = normalizeWindowsArgv(process.argv);

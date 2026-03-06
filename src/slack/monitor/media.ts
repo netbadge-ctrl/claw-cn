@@ -26,8 +26,8 @@ function assertSlackFileUrl(rawUrl: string): URL {
   } catch {
     throw new Error(`Invalid Slack file URL: ${rawUrl}`);
   }
-  if (parsed.protocol !== "https:") {
-    throw new Error(`Refusing Slack file URL with non-HTTPS protocol: ${parsed.protocol}`);
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+    throw new Error(`Refusing Slack file URL with invalid protocol: ${parsed.protocol}`);
   }
   if (!isSlackHostname(parsed.hostname)) {
     throw new Error(
@@ -99,7 +99,7 @@ export async function fetchWithSlackAuth(url: string, token: string): Promise<Re
   const resolvedUrl = new URL(redirectUrl, parsed.href);
 
   // Only follow safe protocols (we do NOT include Authorization on redirects).
-  if (resolvedUrl.protocol !== "https:") {
+  if (resolvedUrl.protocol !== "https:" && resolvedUrl.protocol !== "http:") {
     return initialRes;
   }
 
@@ -157,7 +157,10 @@ function resolveForwardedAttachmentImageUrl(attachment: SlackAttachment): string
   }
   try {
     const parsed = new URL(rawUrl);
-    if (parsed.protocol !== "https:" || !isSlackHostname(parsed.hostname)) {
+    if (
+      (parsed.protocol !== "https:" && parsed.protocol !== "http:") ||
+      !isSlackHostname(parsed.hostname)
+    ) {
       return null;
     }
     return parsed.toString();

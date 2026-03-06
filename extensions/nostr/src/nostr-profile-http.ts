@@ -106,8 +106,8 @@ function validateUrlSafety(urlStr: string): { ok: true } | { ok: false; error: s
   try {
     const url = new URL(urlStr);
 
-    if (url.protocol !== "https:") {
-      return { ok: false, error: "URL must use https:// protocol" };
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+      return { ok: false, error: "URL must use http:// or https:// protocol" };
     }
 
     const hostname = url.hostname.toLowerCase();

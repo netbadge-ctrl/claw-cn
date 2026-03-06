@@ -23,8 +23,12 @@ export async function fetchWithBearerAuthScopeFallback(params: {
   } catch {
     throw new Error(`Invalid URL: ${params.url}`);
   }
-  if (params.requireHttps === true && parsedUrl.protocol !== "https:") {
-    throw new Error(`URL must use HTTPS: ${params.url}`);
+  if (
+    params.requireHttps === true &&
+    parsedUrl.protocol !== "https:" &&
+    parsedUrl.protocol !== "http:"
+  ) {
+    throw new Error(`URL must use HTTPS/HTTP: ${params.url}`);
   }
 
   const fetchOnce = (headers?: Headers): Promise<Response> =>
