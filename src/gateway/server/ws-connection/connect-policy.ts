@@ -83,10 +83,7 @@ export function evaluateMissingDeviceIdentity(params: {
     return { kind: "allow" };
   }
   if (params.isControlUi && !params.controlUiAuthPolicy.allowBypass) {
-    // 移除严格的 HTTPS 限制：现在允许非本地客户且包含 token/密码的接入
-    if (!params.sharedAuthOk) {
-      return { kind: "reject-control-ui-insecure-auth" };
-    }
+    // 允许 Control UI 在没有设备标识的情况下建立连接（支持 HTTP 直连登录流）
     return { kind: "allow" };
   }
   if (roleCanSkipDeviceIdentity(params.role, params.sharedAuthOk)) {
