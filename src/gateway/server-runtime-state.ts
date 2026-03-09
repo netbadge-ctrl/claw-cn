@@ -3,7 +3,9 @@ import { WebSocketServer } from "ws";
 import { CANVAS_HOST_PATH } from "../canvas-host/a2ui.js";
 import { type CanvasHostHandler, createCanvasHostHandler } from "../canvas-host/server.js";
 import type { CliDeps } from "../cli/deps.js";
+import { t } from "../infra/i18n/index.js";
 import type { createSubsystemLogger } from "../logging/subsystem.js";
+// (保留了后续的引入...)
 import type { PluginRegistry } from "../plugins/registry.js";
 import type { RuntimeEnv } from "../runtime.js";
 import type { AuthRateLimiter } from "./auth-rate-limit.js";
@@ -128,10 +130,7 @@ export async function createGatewayRuntimeState(params: {
 
   const bindHosts = await resolveGatewayListenHosts(params.bindHost);
   if (!isLoopbackHost(params.bindHost)) {
-    params.log.warn(
-      "⚠️  Gateway is binding to a non-loopback address. " +
-        "Ensure authentication is configured before exposing to public networks.",
-    );
+    params.log.warn(t("security.nonLoopbackWarning"));
   }
   if (params.cfg.gateway?.controlUi?.dangerouslyAllowHostHeaderOriginFallback === true) {
     params.log.warn(

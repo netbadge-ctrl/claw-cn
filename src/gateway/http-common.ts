@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { t } from "../infra/i18n/index.js";
 import type { GatewayAuthResult } from "./auth.js";
 import { readJsonBody } from "./hooks.js";
 
@@ -50,7 +51,7 @@ export function sendRateLimited(res: ServerResponse, retryAfterMs?: number) {
   }
   sendJson(res, 429, {
     error: {
-      message: "Too many failed authentication attempts. Please try again later.",
+      message: t("errors.authTooManyAttempts"),
       type: "rate_limited",
     },
   });

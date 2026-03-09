@@ -1,5 +1,6 @@
 import type { startGatewayServer } from "../../gateway/server.js";
 import { acquireGatewayLock } from "../../infra/gateway-lock.js";
+import { t } from "../../infra/i18n/index.js";
 import { restartGatewayProcessWithFreshPid } from "../../infra/process-respawn.js";
 import {
   consumeGatewaySigusr1RestartAuthorization,
@@ -100,12 +101,12 @@ export async function runGatewayLoop(params: {
     }
     shuttingDown = true;
     const isRestart = action === "restart";
-    gatewayLog.info(`received ${signal}; ${isRestart ? "restarting" : "shutting down"}`);
+    gatewayLog.info(`received ${signal}; ${isRestart ? t("cli.restarting") : t("cli.stopping")}`);
 
     // Allow extra time for draining active turns on restart.
     const forceExitMs = isRestart ? DRAIN_TIMEOUT_MS + SHUTDOWN_TIMEOUT_MS : SHUTDOWN_TIMEOUT_MS;
     const forceExitTimer = setTimeout(() => {
-      gatewayLog.error("shutdown timed out; exiting without full cleanup");
+      gatewayLog.error(t("cli.shutdownTimeout"));
       exitProcess(0);
     }, forceExitMs);
 
@@ -132,7 +133,7 @@ export async function runGatewayLoop(params: {
         }
 
         await server?.close({
-          reason: isRestart ? "gateway restarting" : "gateway stopping",
+          reason: isRestart ? t("cli.restarting") : t("cli.stopping"),
           restartExpectedMs: isRestart ? 1500 : null,
         });
       } catch (err) {

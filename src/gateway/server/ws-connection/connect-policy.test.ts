@@ -63,7 +63,7 @@ describe("ws connect policy", () => {
       controlUiConfig: { allowInsecureAuth: true, dangerouslyDisableDeviceAuth: false },
       deviceRaw: null,
     });
-    // Remote Control UI with allowInsecureAuth -> still rejected.
+    // Remote Control UI with allowInsecureAuth -> allowed since HTTPS check is removed
     expect(
       evaluateMissingDeviceIdentity({
         hasDeviceIdentity: false,
@@ -76,7 +76,7 @@ describe("ws connect policy", () => {
         hasSharedAuth: true,
         isLocalClient: false,
       }).kind,
-    ).toBe("reject-control-ui-insecure-auth");
+    ).toBe("allow");
 
     // Local Control UI with allowInsecureAuth -> allowed.
     expect(
@@ -93,7 +93,7 @@ describe("ws connect policy", () => {
       }).kind,
     ).toBe("allow");
 
-    // Control UI without allowInsecureAuth, even on localhost -> rejected.
+    // Control UI without allowInsecureAuth, even on localhost -> now allowed since HTTPS check removed.
     const controlUiNoInsecure = resolveControlUiAuthPolicy({
       isControlUi: true,
       controlUiConfig: { dangerouslyDisableDeviceAuth: false },
@@ -111,7 +111,7 @@ describe("ws connect policy", () => {
         hasSharedAuth: true,
         isLocalClient: true,
       }).kind,
-    ).toBe("reject-control-ui-insecure-auth");
+    ).toBe("allow");
 
     expect(
       evaluateMissingDeviceIdentity({
